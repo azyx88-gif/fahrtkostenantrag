@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Fahrtkostenantrag Prototyp</title>
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: eine Antragsstrecke, ein Schritt je Bildschirm, Kartenbreite wie ein Handy, auf dem Desktop mittig. */
+:root{
+  --bg:#f3f3f7; --card:#ffffff; --fg:#1a1a1f; --muted:#5f5f6b; --line:#dcdce4; --soft:#f0ecf6;
+  --accent:#5b2a86; --accent-fg:#ffffff; --uk:#1f5fa8; --bghm:#2e8b57; --bghw:#d9711c;
+  --ok:#2e7d4f; --warn:#b45309; --ok-bg:#e7f3ec; --warn-bg:#fdf1e3;
+  --sans:"Source Sans 3",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141419; --card:#1e1e26; --fg:#ececf1; --muted:#a6a6b4; --line:#34343f; --soft:#2a2435;
+  --accent:#b48cdb; --accent-fg:#16101e; --uk:#7fb0e8; --bghm:#6cc294; --bghw:#f0a35e;
+  --ok:#7fd3a3; --warn:#f3b56b; --ok-bg:#1f3028; --warn-bg:#3a2c1a; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#141419; --card:#1e1e26; --fg:#ececf1; --muted:#a6a6b4; --line:#34343f; --soft:#2a2435;
+  --accent:#b48cdb; --accent-fg:#16101e; --uk:#7fb0e8; --bghm:#6cc294; --bghw:#f0a35e;
+  --ok:#7fd3a3; --warn:#f3b56b; --ok-bg:#1f3028; --warn-bg:#3a2c1a; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:17px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 32px}
+.app{max-width:540px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+header.top .brand{font-weight:700;font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+header.top .step{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s ease}
+@media (prefers-reduced-motion: reduce){.progress>i{transition:none}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;min-width:0}
+h1{font-size:26px;line-height:1.15;margin:0 0 6px;text-wrap:balance}
+h2{font-size:21px;line-height:1.2;margin:0 0 10px;text-wrap:balance}
+h3{font-size:16px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+p{margin:0 0 10px}
+.lede{font-size:18px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.field{display:grid;gap:4px;margin:0 0 12px}
+.field label,.field .lab{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.field .val{font-size:17px}
+.field input[type=number],.field select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+.field input:focus,.field select:focus,button:focus-visible,.tab:focus-visible,details summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.choice{display:flex;flex-wrap:wrap;gap:8px}
+.choice label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;background:var(--card);text-transform:none;letter-spacing:0;font-size:16px;color:var(--fg)}
+.choice input{accent-color:var(--accent)}
+.check{display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:16px}
+.check input{accent-color:var(--accent);width:20px;height:20px;margin-top:2px;flex:none}
+.nav{display:flex;justify-content:space-between;gap:10px}
+button{font:inherit;font-weight:600;border-radius:10px;padding:12px 18px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button.link{border:none;background:none;padding:6px 0;color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+button[disabled]{opacity:.45;cursor:default}
+.people{display:grid;gap:8px;margin:0 0 8px}
+.person{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start}
+.dot{width:14px;height:14px;border-radius:50%;margin-top:7px;border:3px solid var(--line);background:var(--card)}
+.dot.uk{border-color:var(--uk)} .dot.bghm{border-color:var(--bghm)} .dot.bghw{border-color:var(--bghw)} .dot.dguv{border-color:var(--accent)}
+.person b{display:block}
+.route{list-style:none;padding:0;margin:0 0 6px;border-left:3px dashed var(--accent);margin-left:8px}
+.route li{position:relative;padding:0 0 14px 20px}
+.route li::before{content:"";position:absolute;left:-9.5px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--card)}
+.route li:first-child::before{background:var(--card);border:3px solid var(--accent);left:-10.5px;width:10px;height:10px}
+.route .when{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.route b{display:block}
+.beleg{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+.beleg:first-of-type{border-top:none}
+.beleg .ico{width:26px;height:32px;border:2px solid var(--muted);border-radius:4px;position:relative;margin-top:2px}
+.beleg .ico::after{content:"";position:absolute;right:-2px;top:-2px;width:9px;height:9px;background:var(--card);border-left:2px solid var(--muted);border-bottom:2px solid var(--muted)}
+.beleg .state{font-family:var(--mono);font-size:12px;color:var(--ok);white-space:nowrap}
+.sum{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:16px}
+.sum.total{font-weight:700;border-top:2px solid var(--fg)}
+details{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin:10px 0}
+details summary{cursor:pointer;padding:10px 0;font-weight:600}
+details[open] summary{border-bottom:1px solid var(--line);margin-bottom:8px}
+details p,details ul{font-size:15px}
+.rule{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:8px 0;border-top:1px solid var(--line);font-size:15px}
+.rule .m{font-family:var(--mono);font-weight:500;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:14px}
+.rule.ok .m{background:var(--ok-bg);color:var(--ok)} .rule.warn .m{background:var(--warn-bg);color:var(--warn)}
+.verdict{border-radius:12px;padding:14px 16px;margin:12px 0}
+.verdict.ok{background:var(--ok-bg)} .verdict.warn{background:var(--warn-bg)}
+.verdict b{display:block;font-size:19px;margin-bottom:4px}
+.tabs{display:flex;gap:6px;margin:8px 0 10px;flex-wrap:wrap}
+.tab{font:inherit;font-weight:600;font-size:15px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+.tab[aria-selected="true"]{border-color:var(--accent);background:var(--soft)}
+.tab.uk[aria-selected="true"]{border-color:var(--uk)} .tab.bghw[aria-selected="true"]{border-color:var(--bghw)} .tab.bghm[aria-selected="true"]{border-color:var(--bghm)}
+.ist{font-size:15px}
+.ist .t{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:6px}
+.fall{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+.fall .nr{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.fall .btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.fall .btns button{flex:1 1 140px}
+.fall .btns button[aria-pressed="true"]{border-color:var(--accent);background:var(--soft)}
+.fall .sol{font-size:15px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.score{font-size:19px;font-weight:700;margin:10px 0}
+.foot{font-size:13px;color:var(--muted);text-align:center;padding-top:6px}
+.badge{display:inline-block;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--muted);vertical-align:middle}
+.hint{font-size:14px;color:var(--muted);border-left:3px solid var(--line);padding-left:10px;margin:10px 0}
+.timer{font-family:var(--mono);font-size:14px;color:var(--muted)}
+ul.plain{padding-left:20px;margin:0 0 10px}
+ul.plain li{margin:0 0 4px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand">Fahrtkostenantrag · Prototyp</span>
+    <span class="step" id="stepLabel">Start</span>
+  </header>
+  <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+
+  <!-- 0 Start -->
+  <section class="card" data-step="0">
+    <h1>Ein Antrag, der in Sekunden fährt</h1>
+    <p class="lede">Frau K. hat sich bei der Arbeit das Knie verletzt. Dreimal die Woche fährt sie zur Physiotherapie, sechs Kilometer hin, sechs zurück. Am Monatsende füllt sie den Vordruck aus, lässt ihn in der Praxis abstempeln, fotografiert ihn und schickt ihn ab. Dann wartet sie. Ein bis zwei Wochen, sagt das Verwaltungsportal des Bundes; bei Rückfragen länger. Das Geld hat sie vorgestreckt.</p>
+    <p class="small muted">Frau K. ist erfunden; die Wartezeit ist belegt (BMAS 2022).</p>
+    <p>Dieser Prototyp zeigt den Antrag, wie er fahren könnte. Nebenbei stellt er die Projektskizze vor: Jede Maske des Antrags ist ein Abschnitt der Skizze. Am Ende steht ein Bescheid, geprüft nach Regeln statt nach Augenmaß. Sieben Schritte, nichts wird gespeichert.</p>
+    <h3>Projektskizze</h3>
+    <p class="small">Trägerübergreifende Standardisierung der Fahrtkostenerstattung – Analyse und Konzeption eines digitalen Soll-Prozesses am Beispiel der Unfallkasse NRW. Transferprojekt Modul 9, DGUV Hochschule, Jahrgang 25. <span class="badge">Entwurf 23.10.2026</span></p>
+    <p class="small muted">Die Skizze gibt es wie den Antrag auf zwei Wegen. Der Papierweg bleibt: zwei Seiten Text nach den Eckpunkten des Merkblatts. Dieser digitale Weg ist der zweite.</p>
+  </section>
+
+  <!-- 1 Antragsteller -->
+  <section class="card" data-step="1" hidden>
+    <h2>Wer stellt den Antrag?</h2>
+    <div class="field"><span class="lab">Antragstellende</span><span class="val">Projektgruppe Transferprojekt Modul 9</span></div>
+    <div class="people">
+      <div class="person"><span class="dot uk"></span><span><b>Jan Münkenwarf · UK NRW</b><span class="small">Teamleiter Reha und Leistung. Projektkoordination, Ist-Analyse und Datenzugang UK NRW</span></span></div>
+      <div class="person"><span class="dot bghm"></span><span><b>Sandra Müller · BGHM</b><span class="small">Fachliche Koordination, Workshop-Moderation</span></span></div>
+      <div class="person"><span class="dot bghm"></span><span><b>Frank Vogel · BGHM</b><span class="small">Methodik und Wissenschaft, Vergleichsfall BGHM</span></span></div>
+      <div class="person"><span class="dot bghw"></span><span><b>René Grube · BGHW</b><span class="small">Teamleiter Reha und Leistung. Datenerhebung und Praxis, Vergleichsfall BGHW</span></span></div>
+      <div class="person"><span class="dot dguv"></span><span><b>Konstanze Wülfing · DGUV</b><span class="small">Dokumentation und Präsentation, Verbandsperspektive</span></span></div>
+    </div>
+    <div class="field"><span class="lab">Auftraggeber</span><span class="val">Unfallkasse NRW. Unterstützung, Datenzugang und Entscheidungsbefugnisse werden im Projektauftrag (Dezember 2026) schriftlich festgehalten.</span></div>
+    <div class="field"><span class="lab">Ansprechpersonen</span><span class="val small">UK NRW: Leitung Fachbereich Leistung (Auftraggeberin), IT-Kontakt Björn Bongermino, Leiter IT · BGHW: Führungskraft Reha und Leistung · BGHM: Führungskraft Reha und Leistung · DGUV: Bereich Rehabilitation und Leistungen. Namen werden bis zur Abgabe am 30.11.2026 eingetragen.</span></div>
+  </section>
+
+  <!-- 2 Ziel -->
+  <section class="card" data-step="2" hidden>
+    <h2>Wohin soll die Fahrt gehen?</h2>
+    <div class="field"><span class="lab">Zielort</span><span class="val">Ein digitaler Soll-Prozess für die Fahrtkostenerstattung nach § 43 SGB VII, bei dem Standardfälle regelbasiert entschieden werden und die Sachbearbeitung Zeit für die Fälle hat, die sie braucht.</span></div>
+    <div class="field"><span class="lab">Forschungsfrage</span><span class="val">Welche Teilprozesse der Fahrtkostenerstattung können trägerübergreifend standardisiert und regelbasiert automatisiert werden, und welche Anforderungen ergeben sich daraus für einen digitalen Soll-Prozess der UK NRW?</span></div>
+    <details><summary>Drei Teilfragen</summary>
+      <ul class="plain">
+        <li>Wie läuft der Ist-Prozess bei den drei Trägern tatsächlich ab, wo entstehen Liegezeiten, wie hoch ist der Ist-Median?</li>
+        <li>Welche Fallkonstellationen sind nach transparenten Kriterien standardisierbar, welche Prüfschritte dürfen automatisiert entschieden werden (§ 31a SGB X, Art. 22 DSGVO)?</li>
+        <li>Wie verändert der Soll-Prozess die Tätigkeit der Sachbearbeitung und den Zugang der Versicherten?</li>
+      </ul>
+    </details>
+    <details><summary>Startpunkt: der Antrag heute</summary>
+      <p>Ein Massenprozess mit hoher Fallzahl und geringer Einzelfallkomplexität. Bei der UK NRW tragen Versicherte jede Fahrt handschriftlich in einen Papiervordruck ein, lassen ihn abstempeln und reichen ihn per Post oder Handyfoto ein; der Online-Dienst im Serviceportal übergibt die Daten nicht strukturiert. Die Sachbearbeitung entziffert, prüft Wegstrecken teils händisch, erfasst alles im Fachverfahren und fragt nach. Die BGHW verschickt dafür ein neunseitiges Papierpaket mit QR-Link zum Dokument-Upload, prüft Strecken per Routenplaner mit zehn Prozent Toleranz und zieht ein Prozent der Zahlungen in eine Stichprobe. Fallzahlen, Rückfragequoten und Bearbeitungszeiten sind bislang Annahmen; die Ist-Analyse klärt sie.</p>
+    </details>
+    <details><summary>Strategischer Rahmen</summary>
+      <p>Digitalisierungsstrategie der gesetzlichen Unfallversicherung (GFK-Beschluss 22.11.2022): 75 Prozent aller Dienstleistungen digital und bidirektional, digitale Lösungen nur einmal für alle Träger (DGUV 2024); die Umwandlung von Formularen in PDF gilt nicht als Digitalisierung (Herrmann/Schmitz 2023). OZG-Änderungsgesetz 2024: ab 2029 Anspruch auf elektronischen Zugang (§ 1a Abs. 2 OZG), durchgängig elektronische Abwicklung bis Ende 2029 (§ 6 EGovG). Das OSA-Statement aus Modul 5.1, Median fünf Arbeitstage bis Ende 2027, ist Arbeitshypothese, kein Trägerbeschluss.</p>
+    </details>
+  </section>
+
+  <!-- 3 Strecke -->
+  <section class="card" data-step="3" hidden>
+    <h2>Welche Strecke?</h2>
+    <p class="small muted">Fünf Monate, vier Meilensteine, nach dem Phasenmodell des Merkblatts.</p>
+    <ul class="route">
+      <li><span class="when">Dezember 2026</span><b>Auftragsklärung</b><span class="small">Schriftlicher Projektauftrag mit UK NRW, BGHW und BGHM; Zusage Daten- und Workshop-Zugang; Vorklärung Kassenordnung und Abrechnungsdaten.</span></li>
+      <li><span class="when">Januar 2027</span><b>M1 Kick-off</b><span class="small">Projektplan, Vergleichsraster, Fallkarten-Set, Workshop-Design, Bewertungskriterien für den Review, Datenschutzklärung.</span></li>
+      <li><span class="when">Februar bis März 2027</span><b>M2 Zwischenergebnisse</b><span class="small">Ist-BPMN der drei Träger, Ist-Median, Schwachstellenanalyse, validierte Falltypologie.</span></li>
+      <li><span class="when">April 2027</span><b>M3 Review Design</b><span class="small">Soll-Prozess mit Entscheidungstabellen, Change-Impact-Matrix, Review-Workshop mit Trägern und DGUV.</span></li>
+      <li><span class="when">Mai bis Juni 2027</span><b>M4 Abschluss</b><span class="small">Übertragbarkeitsmatrix, Umsetzungsroadmap mit Risikoregister, Projektbericht; Abnahme durch den Auftraggeber, Abschlusspräsentation.</span></li>
+    </ul>
+    <details><summary>Vier Arbeitspakete, sechs Termine</summary>
+      <ul class="plain">
+        <li><b>Ist-Analyse.</b> Dokumentenanalyse nach einem Raster in fünf Dimensionen; je Träger ein Workshop mit der Sachbearbeitung, fremdmoderiert, mit rund 60 anonymisierten Fallkarten und BPMN-Rekonstruktion.</li>
+        <li><b>Datenauswertung.</b> Anonymisierte Fälle eines Jahrgangs der UK NRW (Fallart, Kanal, Betrag, Zeitstempel) für Ist-Median und Fallstruktur; BGHW und BGHM mit Kennzahlen oder Aktenstichprobe.</li>
+        <li><b>Konzeption.</b> Falltypologie als Expertenentwurf, Soll-Prozess in BPMN mit Entscheidungstabellen, Gespräche mit Justiziariat und Kasse (§§ 40 Abs. 5, 41a SRVwV).</li>
+        <li><b>Evaluation.</b> Review-Workshop nach vorab festgelegten Kriterien: Bearbeitungszeit, Rechtssicherheit, Versichertenorientierung, Umsetzungsaufwand.</li>
+      </ul>
+    </details>
+    <details><summary>Warum drei Träger</summary>
+      <p>UK NRW als Anwendungsfall, BGHW und BGHM als Vergleichsfälle nach einheitlichem Raster, die DGUV als Verbandsperspektive. UK NRW und BGHM arbeiten mit NOVA, die BGHW mit Cusa RuL, Übertragbarkeit wird also innerhalb eines Systems und über Systemgrenzen hinweg geprüft. Ergebnisse: Falltypologie mit Kriterienkatalog, übertragbares Soll-Prozessmodell, Bewertung trägerunabhängig umsetzbarer Automatisierungsschritte. Die Übertragbarkeit wird im Review geprüft, nicht behauptet.</p>
+    </details>
+  </section>
+
+  <!-- 4 Belege -->
+  <section class="card" data-step="4" hidden>
+    <h2>Belege</h2>
+    <p class="small muted">Was den Antrag trägt: Quellen und Modelle.</p>
+    <div class="beleg"><span class="ico"></span><span><b>BMAS (2022)</b><br>Reise- und Fahrtkosten zur medizinischen Behandlung einreichen. Verwaltungsportal des Bundes, Stand 08.12.2022.</span><span class="state">angehängt</span></div>
+    <div class="beleg"><span class="ico"></span><span><b>DGUV (2024)</b><br>Strategische Zielbilder für die Digitalisierung in der gesetzlichen Unfallversicherung, Stand 11.09.2024 (UV-intern).</span><span class="state">angehängt</span></div>
+    <div class="beleg"><span class="ico"></span><span><b>Herrmann/Schmitz (2023)</b><br>Die Digitalisierungsstrategie der gesetzlichen Unfallversicherung. DGUV forum 11/2023.</span><span class="state">angehängt</span></div>
+    <div class="beleg"><span class="ico"></span><span><b>OZG-Änderungsgesetz</b><br>vom 19.07.2024, BGBl. 2024 I Nr. 245.</span><span class="state">angehängt</span></div>
+    <div class="beleg"><span class="ico"></span><span><b>Modelle</b><br>BPM-Lebenszyklus (Dumas et al. 2018), Outcome-Logik (Ritz/Thom 2019), Strategieverständnis (Welge/Al-Laham/Eulerich 2024), Change-Impact (Lauer 2021).</span><span class="state">angehängt</span></div>
+    <details><summary>Qualitätssicherung</summary>
+      <p>Fremdmoderation der Workshops, verdeckte Sortierung der Fallkarten, Bewertungskriterien vor der Erhebung, fortgeschriebenes Annahmenprotokoll. Die Doppelrolle der Teammitglieder als Fachvorgesetzte wird offengelegt und so kontrolliert.</p>
+      <p>Rechtliche Prüfpunkte: § 43 SGB VII, UV-Reisekostenrichtlinien, §§ 36a, 60 SGB I, § 31a SGB X, Art. 22 DSGVO, §§ 40 Abs. 5, 41a SRVwV. Die Kassenordnung der BGHW lässt IT-gestützte Feststellung und Anordnung bereits zu (§ 26); das Ordnungsmäßigkeitskonzept für automatisierte Zahlungen ist Projektergebnis.</p>
+    </details>
+  </section>
+
+  <!-- 5 Bankverbindung -->
+  <section class="card" data-step="5" hidden>
+    <h2>Bankverbindung</h2>
+    <p class="small muted">Was das Projekt kostet, und wer es bezahlt.</p>
+    <div class="sum"><span>Fünf Studierende à 250 Stunden (Teilmodul 9.2)</span><span class="mono">1.250 h</span></div>
+    <div class="sum"><span>Drei Workshops à zwei Stunden, vier bis sechs Sachbearbeitende</span><span class="mono">3 × 2 h</span></div>
+    <div class="sum"><span>Review-Workshop, vier Fachgespräche</span><span class="mono">5 Termine</span></div>
+    <div class="sum"><span>Datenexport UK NRW</span><span class="mono">1–2 PT</span></div>
+    <div class="sum total"><span>Aufwand der Träger</span><span class="mono">gering</span></div>
+    <details><summary>Risiken</summary>
+      <ul class="plain">
+        <li>Datenzugang: Ausweichstrategie Aktenstichprobe.</li>
+        <li>Automatisierte Fehlentscheidungen: Stichprobenkontrollen, Beschwerdekennzahl, Abbruchkriterium für den späteren Pilot.</li>
+        <li>Verdrängung komplexer Fälle: Die freiwerdende Kapazität wird ihnen ausdrücklich zugeordnet.</li>
+      </ul>
+    </details>
+    <details><summary>Abgrenzung</summary>
+      <p>Fahrten mit Pkw und öffentlichen Verkehrsmitteln zur ambulanten Behandlung. Begleitpersonen, Verdienstausfall, Übernachtung, Krankentransporte und Familienheimfahrten nur als Sonderfälle abgegrenzt. Keine Implementierung, kein Pilotbetrieb, kein Zielnachweis bis 2027, keine Änderung der Rechtsgrundlagen.</p>
+    </details>
+  </section>
+
+  <!-- 6 Probefahrt -->
+  <section class="card" data-step="6" hidden>
+    <h2>Probefahrt</h2>
+    <p class="small muted">Geben Sie eine Fahrt ein. Der Bescheid prüft sie nach den Regeln aus dem Fachkonzept. Der Routenplaner ist simuliert; die Referenzstrecken sind Beispiele.</p>
+    <div class="field"><label for="route">Strecke</label>
+      <select id="route">
+        <option value="6">Wohnung → Physiotherapie, Referenz 6 km einfach</option>
+        <option value="8">Wohnung → D-Arzt, Referenz 8 km einfach</option>
+        <option value="42">Wohnung → BG-Klinik, Referenz 42 km einfach</option>
+      </select></div>
+    <div class="field"><span class="lab">Verkehrsmittel</span>
+      <div class="choice">
+        <label><input type="radio" name="vm" id="vm_pkw" value="pkw" checked> Pkw</label>
+        <label><input type="radio" name="vm" id="vm_opnv" value="opnv"> Bus und Bahn</label>
+        <label><input type="radio" name="vm" id="vm_taxi" value="taxi"> Taxi</label>
+      </div></div>
+    <div class="field" id="f_km"><label for="km">Gefahrene Kilometer, einfach</label><input type="number" id="km" min="0" step="0.5" value="6"></div>
+    <div class="field" id="f_betrag" hidden><label for="betrag">Fahrpreis je Hin- und Rückfahrt in Euro</label><input type="number" id="betrag" min="0" step="0.5" value="6.4"></div>
+    <div class="check" id="f_zeitkarte" hidden><input type="checkbox" id="zeitkarte"><label for="zeitkarte">Es handelt sich um eine Zeitkarte (Monats- oder Jahreskarte)</label></div>
+    <div class="check" id="f_darzt" hidden><input type="checkbox" id="darzt" checked><label for="darzt">Fahrt zum ersten Besuch beim Durchgangsarzt</label></div>
+    <div class="field"><label for="fahrten">Fahrten im Monat (Hin- und Rückfahrt)</label><input type="number" id="fahrten" min="1" max="60" step="1" value="12"></div>
+    <div class="check"><input type="checkbox" id="nachweis" checked><label for="nachweis">Die Behandlerabrechnung liegt dem Träger vor (ersetzt den Stempel)</label></div>
+  </section>
+
+  <!-- 7 Bescheid -->
+  <section class="card" data-step="7" hidden>
+    <h2>Bescheid</h2>
+    <div id="verdict" class="verdict ok"><b>Standardfall</b><span id="verdictText"></span></div>
+    <p class="timer" id="timer"></p>
+    <div id="rules"></div>
+    <h3>Derselbe Antrag heute</h3>
+    <div class="tabs" role="tablist">
+      <button class="tab uk" role="tab" aria-selected="true" data-ist="uk">UK NRW</button>
+      <button class="tab bghw" role="tab" aria-selected="false" data-ist="bghw">BGHW</button>
+      <button class="tab bghm" role="tab" aria-selected="false" data-ist="bghm">BGHM</button>
+    </div>
+    <div class="ist" id="ist"></div>
+    <h3>Was die Skizze daraus macht</h3>
+    <p class="small">Drei Träger, zwei Fachverfahren, drei Wege für denselben Anspruch. Das Projekt vergleicht sie nach einem Raster, sortiert reale Fälle mit der Sachbearbeitung in Standard- und Prüffälle und baut daraus Kriterienkatalog und Soll-Prozess. Ob die Regeln aus diesem Bescheid bei allen Trägern tragen, prüft der Review im April.</p>
+    <p><button class="link" id="toMethod">Die Methode selbst ausprobieren: fünf Fallkarten sortieren</button></p>
+  </section>
+
+  <!-- 8 Fallkarten -->
+  <section class="card" data-step="8" hidden>
+    <h2>Fünf Fallkarten</h2>
+    <p class="small muted">So arbeiten die Workshops in Arbeitspaket 1: Die Sachbearbeitung sortiert anonymisierte Fälle verdeckt in Standardfall und Prüffall. Danach wird gegen die Kriterien des Fachkonzepts gehalten. Probieren Sie es.</p>
+    <div id="cards"></div>
+    <div id="scoreBox" hidden>
+      <p class="score" id="score"></p>
+      <p class="small muted">Abweichungen sind kein Fehler. Genau dort, wo Sachbearbeitung und Regelwerk auseinanderliegen, beginnt die Arbeit des Projekts.</p>
+    </div>
+  </section>
+
+  <!-- 9 Ende -->
+  <section class="card" data-step="9" hidden>
+    <h2>Angekommen</h2>
+    <p>Sie haben die Projektskizze als Antrag durchlaufen. Der Papierweg bleibt: Die Textfassung nach den Eckpunkten des Merkblatts liegt der Abgabe bei.</p>
+    <h3>Zum Prototyp</h3>
+    <p class="small">Klick-Prototyp ohne Speicherung und ohne Anbindung an ein Fachverfahren. Der Routenplaner ist simuliert, die Grenzwerte sind Beispiele aus der Praxis der BGHW und dem Fachkonzept; sie werden im Projekt mit den drei Trägern kalibriert. Frau K. ist erfunden.</p>
+    <p class="small muted">Projektgruppe Transferprojekt Modul 9, DGUV Hochschule · Entwurf Variante D, 23.10.2026 · zur Entscheidung im Treffen T03 am 02.11.2026</p>
+  </section>
+
+  <nav class="nav">
+    <button id="back" hidden>Zurück</button>
+    <button id="next" class="primary">Antrag starten</button>
+  </nav>
+  <p class="foot">Prototyp · nichts wird gespeichert · Routenplaner simuliert</p>
+</div>
+
+<script>
+(function(){
+  const steps = Array.from(document.querySelectorAll('[data-step]'));
+  const LAST = steps.length - 1;
+  const names = ['Start','Antragstellende','Ziel','Strecke','Belege','Bankverbindung','Probefahrt','Bescheid','Fallkarten','Ende'];
+  const bar = document.getElementById('bar'), stepLabel = document.getElementById('stepLabel');
+  const back = document.getElementById('back'), next = document.getElementById('next');
+  let cur = 0;
+  const fmt = (n) => n.toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+
+  function show(i){
+    cur = Math.max(0, Math.min(LAST, i));
+    steps.forEach((s,k)=>{ s.hidden = k!==cur; });
+    bar.style.width = (cur/LAST*100)+'%';
+    stepLabel.textContent = cur===0 ? 'Start' : (cur===LAST ? 'Ende' : 'Schritt '+cur+' von '+(LAST-1)+' · '+names[cur]);
+    back.hidden = cur===0;
+    next.hidden = cur===LAST;
+    next.textContent = cur===0 ? 'Antrag starten' : (cur===6 ? 'Absenden' : (cur===7 ? 'Weiter' : (cur===8 ? 'Abschließen' : 'Weiter')));
+    if(cur===7) bescheid();
+    window.scrollTo({top:0, behavior:'auto'});
+  }
+  back.addEventListener('click', ()=>show(cur-1));
+  next.addEventListener('click', ()=>show(cur+1));
+  document.getElementById('toMethod').addEventListener('click', ()=>show(8));
+
+  // Probefahrt: Felder je Verkehrsmittel
+  const vm = () => document.querySelector('input[name=vm]:checked').value;
+  function syncFields(){
+    const v = vm();
+    document.getElementById('f_km').hidden = v!=='pkw';
+    document.getElementById('f_betrag').hidden = v==='pkw';
+    document.getElementById('f_zeitkarte').hidden = v!=='opnv';
+    document.getElementById('f_darzt').hidden = v!=='taxi';
+    if(v==='taxi' && +document.getElementById('betrag').value===6.4) document.getElementById('betrag').value = 24;
+    if(v==='opnv' && +document.getElementById('betrag').value===24) document.getElementById('betrag').value = 6.4;
+  }
+  document.querySelectorAll('input[name=vm]').forEach(r=>r.addEventListener('change', syncFields));
+  document.getElementById('route').addEventListener('change', e=>{ document.getElementById('km').value = e.target.value; });
+
+  // Regelwerk (Beispielwerte): Wegstrecke ±10 %, Pkw 0,20 €/km bis 130 € je Hin- und Rückfahrt,
+  // ÖPNV ohne Beleg nach Tarif, Zeitkarte keine Erstattung, Taxi nur erster D-Arzt-Besuch ohne Bescheinigung,
+  // über 500 € zweite Genehmigung, Behandlerabrechnung statt Stempel, 1 % Stichprobe.
+  function pruefen(){
+    const ref = +document.getElementById('route').value;
+    const v = vm();
+    const km = +document.getElementById('km').value || 0;
+    const betrag = +document.getElementById('betrag').value || 0;
+    const fahrten = Math.max(1, +document.getElementById('fahrten').value || 1);
+    const nachweis = document.getElementById('nachweis').checked;
+    const rules = []; let pruef = false; let jeFahrt = 0;
+    if(v==='pkw'){
+      const dev = ref ? Math.abs(km-ref)/ref : 0;
+      if(dev<=0.10) rules.push(['ok','Wegstrecke: '+km.toLocaleString('de-DE')+' km, Routenplaner '+ref+' km, Abweichung '+Math.round(dev*100)+' % (bis 10 % zulässig)']);
+      else { pruef = true; rules.push(['warn','Wegstrecke: '+km.toLocaleString('de-DE')+' km, Routenplaner '+ref+' km, Abweichung '+Math.round(dev*100)+' %. Begründung wird angefordert.']); }
+      jeFahrt = Math.min(2*km*0.20, 130);
+      rules.push([2*km*0.20>130?'warn':'ok','Pkw: 0,20 € je km, Hin- und Rückfahrt '+fmt(2*km*0.20)+(2*km*0.20>130?', gekappt auf 130 €':'')+' (UV-Reisekostenrichtlinien)']);
+    } else if(v==='opnv'){
+      jeFahrt = betrag;
+      if(document.getElementById('zeitkarte').checked){ pruef = true; rules.push(['warn','Zeitkarte: nach der Praxis der BGHW keine Erstattung. Die Sachbearbeitung entscheidet.']); }
+      else rules.push(['ok','Bus und Bahn: '+fmt(betrag)+' je Hin- und Rückfahrt, ohne Beleg nach Tarif']);
+    } else {
+      jeFahrt = betrag;
+      if(document.getElementById('darzt').checked) rules.push(['ok','Taxi zum ersten Besuch beim Durchgangsarzt: ohne ärztliche Bescheinigung erstattungsfähig, '+fmt(betrag)]);
+      else { pruef = true; rules.push(['warn','Taxi: Für weitere Fahrten ist eine ärztliche Bescheinigung nötig. Die Sachbearbeitung fordert sie an.']); }
+    }
+    const summe = jeFahrt*fahrten;
+    if(summe<=500) rules.push(['ok','Betrag: '+fahrten+' Fahrten, '+fmt(summe)+'. Bis 500 € genügt eine Freigabe, Feststellung und Anordnung laufen IT-gestützt.']);
+    else { pruef = true; rules.push(['warn','Betrag: '+fahrten+' Fahrten, '+fmt(summe)+'. Über 500 € ist eine zweite Genehmigung nötig (Dienstanweisung zur Kassenordnung BGHW).']); }
+    if(nachweis) rules.push(['ok','Behandlungsnachweis: Die Behandlerabrechnung liegt vor. Der Stempel der Einrichtung entfällt.']);
+    else { pruef = true; rules.push(['warn','Behandlungsnachweis: Die Behandlerabrechnung fehlt noch. Warteschleife oder manuelle Prüfung, die Gruppe entscheidet das am 11.11.']); }
+    const stich = Math.random() < 0.01;
+    if(stich) rules.push(['warn','Stichprobe: Dieser Antrag wurde systemgesteuert in die Ein-Prozent-Stichprobe gezogen.']);
+    else rules.push(['ok','Stichprobe: nicht gezogen (ein Prozent der Standardfälle wird nachgeprüft)']);
+    return {rules, pruef: pruef||stich, summe, v};
+  }
+  function bescheid(){
+    const t0 = performance.now();
+    const r = pruefen();
+    const box = document.getElementById('rules');
+    box.innerHTML = r.rules.map(([k,t])=>'<div class="rule '+k+'"><span class="m">'+(k==='ok'?'✓':'!')+'</span><span>'+t+'</span></div>').join('');
+    const vd = document.getElementById('verdict');
+    vd.className = 'verdict '+(r.pruef?'warn':'ok');
+    vd.querySelector('b').textContent = r.pruef ? 'Prüffall' : 'Standardfall';
+    document.getElementById('verdictText').textContent = r.pruef
+      ? 'Der Antrag geht an die Sachbearbeitung. Sie sieht die geprüften Punkte und entscheidet nur, was offen ist.'
+      : 'Erstattung von '+fmt(r.summe)+' angeordnet. Zahlung in Tagen, Bearbeitungsstand einsehbar.';
+    const ms = performance.now()-t0;
+    document.getElementById('timer').textContent = 'Prüfdauer: '+(ms<1?'unter einer Millisekunde':ms.toFixed(1)+' Millisekunden')+'. Heute: ein bis zwei Wochen (BMAS 2022).';
+    renderIst('uk');
+  }
+  const IST = {
+    uk: '<b>UK NRW · NOVA</b><br>Papiervordruck, jede Fahrt handschriftlich, Stempel der Praxis, Einreichung per Post oder Handyfoto. Die Sachbearbeitung entziffert, prüft die Wegstrecke teils händisch, erfasst alles in NOVA und fragt bei Lücken per Brief nach.<div class="t">Bearbeitungszeit heute: ein bis zwei Wochen (BMAS 2022), bei Rückfrage länger.</div>',
+    bghw: '<b>BGHW · SIGUV Cusa RuL</b><br>Versandpaket mit neun Seiten und Stempelfeld, Rückweg per Post oder QR-Link zum Upload (nur das Dokument, keine Daten). Erfassung in Cusa RuL. Die Wegstrecke wird mit Routenplaner und zehn Prozent Toleranz geprüft, Bus und Bahn ohne Beleg nach Tarif, über 500 € zweite Genehmigung, ein Prozent der Zahlungen in der Stichprobe.<div class="t">Die Regeln gibt es schon, sie laufen nur durch Menschen. Der Soll-Prozess lässt sie das System anwenden.</div>',
+    bghm: '<b>BGHM · NOVA</b><br>Die Ist-Linie wird im Dezember und Januar erhoben (Meilenstein 1). Gleiches Fachverfahren wie die UK NRW; Unterschiede bei Vordruck, Nachweisen und Prüfschritten werden erwartet.<div class="t">Annahme R-004 im Risikoregister. Der Vergleich wird erst mit diesen Unterschieden aussagekräftig.</div>'
+  };
+  function renderIst(k){
+    document.getElementById('ist').innerHTML = IST[k];
+    document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.ist===k)));
+  }
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>renderIst(t.dataset.ist)));
+
+  // Fallkarten
+  const FAELLE = [
+    {t:'Pkw zur Physiotherapie, 6 km einfach, Routenplaner 6 km, Behandlerabrechnung liegt vor, 12 Fahrten, 28,80 €', s:'std', e:'Standardfall: Strecke passt, Nachweis liegt vor, Betrag unter 500 €. Hier entscheidet das Regelwerk.'},
+    {t:'Pkw zur BG-Klinik, 42 km angegeben, Routenplaner 31 km, Behandlerabrechnung liegt vor', s:'pruef', e:'Prüffall: 35 Prozent über der Routenplaner-Strecke. Das System fordert eine Begründung an, die Sachbearbeitung entscheidet.'},
+    {t:'Taxi zum ersten Besuch beim Durchgangsarzt am Unfalltag, 24 €, keine ärztliche Bescheinigung', s:'std', e:'Standardfall: Für den ersten D-Arzt-Besuch ist nach der Praxis der BGHW keine Bescheinigung nötig.'},
+    {t:'Monatskarte für Bus und Bahn, 49 €, acht Fahrten zur Behandlung, Rest privat genutzt', s:'pruef', e:'Prüffall: Eine Zeitkarte wird nach der Praxis der BGHW nicht erstattet. Ob ein anteiliger Weg möglich ist, prüft die Sachbearbeitung.'},
+    {t:'Pkw zur Reha, 23 Fahrten im Monat, Strecke passt, Nachweis liegt vor, Summe 612 €', s:'pruef', e:'Prüffall: Alle Einzelprüfungen laufen durch, aber über 500 € verlangt die Dienstanweisung eine zweite Genehmigung.'},
+  ];
+  const cards = document.getElementById('cards');
+  const answers = {};
+  cards.innerHTML = FAELLE.map((f,i)=>'<div class="fall" id="fall'+i+'"><span class="nr">Fallkarte '+(i+1)+' von '+FAELLE.length+'</span><p>'+f.t+'</p><div class="btns"><button type="button" data-i="'+i+'" data-a="std" aria-pressed="false">Standardfall</button><button type="button" data-i="'+i+'" data-a="pruef" aria-pressed="false">Prüffall</button></div><div class="sol" hidden></div></div>').join('');
+  cards.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+    const i = +b.dataset.i, a = b.dataset.a;
+    answers[i] = a;
+    const wrap = document.getElementById('fall'+i);
+    wrap.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', String(x.dataset.a===a)));
+    const sol = wrap.querySelector('.sol');
+    sol.hidden = false;
+    sol.innerHTML = (a===FAELLE[i].s ? '<b>Wie das Regelwerk.</b> ' : '<b>Anders als das Regelwerk.</b> ')+FAELLE[i].e;
+    if(Object.keys(answers).length===FAELLE.length){
+      const hits = FAELLE.filter((f,k)=>answers[k]===f.s).length;
+      document.getElementById('score').textContent = hits+' von '+FAELLE.length+' wie das Regelwerk sortiert.';
+      document.getElementById('scoreBox').hidden = false;
+    }
+  }));
+
+  // Viewer-Updates: Schritt und Eingaben überleben eine Neuveröffentlichung
+  function snapshot(){ return {cur, route: document.getElementById('route').value, vm: vm(), km: document.getElementById('km').value, betrag: document.getElementById('betrag').value, fahrten: document.getElementById('fahrten').value, nachweis: document.getElementById('nachweis').checked}; }
+  function start(data){
+    if(data && typeof data.cur==='number'){
+      try{ document.getElementById('route').value = data.route; document.getElementById('km').value = data.km; document.getElementById('betrag').value = data.betrag; document.getElementById('fahrten').value = data.fahrten; document.getElementById('nachweis').checked = !!data.nachweis; const r=document.getElementById('vm_'+data.vm); if(r) r.checked=true; }catch(e){}
+      syncFields(); show(data.cur);
+    } else { syncFields(); show(0); }
+  }
+  window.claude?.hot?.snapshot?.(snapshot);
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
